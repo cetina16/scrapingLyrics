@@ -2,6 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import pandas as pd
+from langdetect import detect, DetectorFactory
+from langdetect.lang_detect_exception import LangDetectException
+
 
 BASE_URL = ""
 HEADERS = {'User-Agent': 'Mozilla/5.0'}
@@ -81,3 +84,25 @@ df = pd.DataFrame(data)
 df.to_csv("full_lyrics_translation.csv", index=False, encoding="utf-8-sig")
 print(f"\n Saved {len(df)} translations to full_lyrics_translation.csv")
 
+
+DetectorFactory.seed = 0  # for consistent results
+
+# Load CSV
+df = pd.read_csv("full_lyrics_translation.csv", encoding="utf-8-sig")
+
+def is_valid_language(text, expected_lang):
+    try:
+        return detect(text) == expected_lang
+    except LangDetectException:
+        return False
+
+# Apply language checks
+df['valid_english'] = df['english'].apply(lambda x: is_valid_language(str(x), 'en'))
+df['valid_turkish'] = df['turkish'].apply(lambda x: is_valid_language(str(x), 'tr'))
+
+# Filter rows
+clean_df = df[df['valid_english'] & df['valid_turkish']].drop(columns=['valid_english', 'valid_turkish'])
+
+# Save the cleaned file
+clean_df.to_csv("cleaned_english_lyrics_w_translation.csv", index=False, encoding="utf-8-sig")
+print(f"Cleaned dataset saved with {len(clean_df)} valid rows.")
